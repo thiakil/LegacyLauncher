@@ -6,6 +6,8 @@ import joptsimple.OptionSpec;
 
 import java.io.File;
 import java.lang.reflect.Method;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -15,6 +17,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.StringTokenizer;
 
 import org.apache.logging.log4j.Level;
 
@@ -31,8 +34,14 @@ public class Launch {
     public static LaunchClassLoader classLoader;
 
     private Launch() {
-        final URLClassLoader ucl = (URLClassLoader) getClass().getClassLoader();
-        classLoader = new LaunchClassLoader(ucl.getURLs());
+        URL[] urls;
+        if (getClass().getClassLoader() instanceof URLClassLoader){
+            urls = ((URLClassLoader) getClass().getClassLoader()).getURLs();
+        } else {
+            String classPath = appendPath(System.getProperty("java.class.path"), System.getProperty("env.class.path"));
+            urls = pathToURLs(classPath);
+        }
+        classLoader = new LaunchClassLoader(urls);
         blackboard = new HashMap<String,Object>();
         Thread.currentThread().setContextClassLoader(classLoader);
     }
@@ -137,5 +146,43 @@ public class Launch {
             LogWrapper.log(Level.ERROR, e, "Unable to launch");
             System.exit(1);
         }
+    }
+
+    private static URL fileToURL(File file) {
+        try {
+            return file.toURI().toURL();
+        } catch (MalformedURLException e) {
+            LogWrapper.log(Level.ERROR, e, "Could not convert {} to URL", file.toString());
+            return null;
+        }
+    }
+
+    //the following 2 methods are largely copied from internal sun.* classes
+    public static String appendPath(String pathTo, String pathFrom) {
+        if (pathTo == null || pathTo.length() == 0) {
+            return pathFrom;
+        } else if (pathFrom == null || pathFrom.length() == 0) {
+            return pathTo;
+        } else {
+            return pathTo  + File.pathSeparator + pathFrom;
+        }
+    }
+
+    public static URL[] pathToURLs(String path) {
+        StringTokenizer st = new StringTokenizer(path, File.pathSeparator);
+        URL[] urls = new URL[st.countTokens()];
+        int count = 0;
+        while (st.hasMoreTokens()) {
+            URL url = fileToURL(new File(st.nextToken()));
+            if (url != null) {
+                urls[count++] = url;
+            }
+        }
+        if (urls.length != count) {
+            URL[] tmp = new URL[count];
+            System.arraycopy(urls, 0, tmp, 0, count);
+            urls = tmp;
+        }
+        return urls;
     }
 }
