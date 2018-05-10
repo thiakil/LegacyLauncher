@@ -149,7 +149,7 @@ public class LaunchClassLoader extends URLClassLoader {
                         final JarEntry entry = jarFile.getJarEntry(fileName);
 
                         Package pkg = getPackage(packageName);
-                        getClassBytes(untransformedName);
+                        //getClassBytes(untransformedName);
                         signers = entry.getCodeSigners();
                         if (pkg == null) {
                             pkg = definePackage(packageName, manifest, jarURLConnection.getJarFileURL());
