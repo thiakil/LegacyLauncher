@@ -133,6 +133,10 @@ public class LaunchClassLoader extends URLClassLoader {
             final String fileName = untransformedName.replace('.', '/').concat(".class");
             URLConnection urlConnection = findCodeSourceConnectionFor(fileName);
 
+            if (urlConnection == null) {
+                throw new ClassNotFoundException(name);
+            }
+
             CodeSigner[] signers = null;
 
             if (lastDot > -1 && !untransformedName.startsWith("net.minecraft.")) {
@@ -172,7 +176,7 @@ public class LaunchClassLoader extends URLClassLoader {
                 saveTransformedClass(transformedClass, transformedName);
             }
 
-            final CodeSource codeSource = urlConnection == null ? null : new CodeSource(urlConnection.getURL(), signers);
+            final CodeSource codeSource = new CodeSource(urlConnection.getURL(), signers);
             final Class<?> clazz = defineClass(transformedName, transformedClass, 0, transformedClass.length, codeSource);
             cachedClasses.put(transformedName, clazz);
             return clazz;
@@ -181,6 +185,9 @@ public class LaunchClassLoader extends URLClassLoader {
             if (DEBUG) {
                 LogWrapper.log(Level.TRACE, e, "Exception encountered attempting classloading of %s", name);
                 LogManager.getLogger("LaunchWrapper").log(Level.ERROR, "Exception encountered attempting classloading of %s", e);
+            }
+            if (e instanceof ClassNotFoundException) {
+                throw (ClassNotFoundException)e;
             }
             throw new ClassNotFoundException(name, e);
         }
